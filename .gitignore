@@ -1,0 +1,7 @@
+# Arquivos que o Windows/macOS criam sozinhos e nao fazem parte do site
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Preferencias locais desta maquina, nao fazem parte do site
+.claude/settings.local.json
