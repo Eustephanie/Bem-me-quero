@@ -466,8 +466,14 @@ h1, h2, h3 {
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: clamp(16px, 2.6vw, 34px);
 }
+/* O card é um <button>: sem o flex abaixo, ele centraliza o próprio conteúdo
+   verticalmente quando a linha do grid fica mais alta que ele, e as fotos
+   saem do alinhamento. O flex em coluna prende foto e legenda no topo. */
 .foto {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   width: 100%;
   padding: 0;
   border: none;
@@ -475,22 +481,29 @@ h1, h2, h3 {
   text-align: left;
   cursor: zoom-in;
 }
+/* A moldura é quem define o tamanho do card: mesma proporção para todas. */
 .foto__moldura {
   display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: 2px;
   background: var(--papel-3);
 }
 .foto img {
+  display: block;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  height: 100%;
   object-fit: cover;
+  object-position: center;
   transition: transform 1.1s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease;
 }
 .foto:hover img { transform: scale(1.035); }
 .foto__legenda {
   display: block;
   margin-top: 12px;
+  min-height: 3em;   /* reserva 2 linhas (line-height 1.5), para os cards
+                        terminarem na mesma altura mesmo com textos curtos */
   color: var(--tinta-3);
   font-size: 13.5px;
   line-height: 1.5;
