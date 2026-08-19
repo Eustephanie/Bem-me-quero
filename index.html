@@ -1584,7 +1584,19 @@ const CONFIG = {
     ativo: false,
     calendarId: "",                     // ex.: "abc123@group.calendar.google.com"
     apiKey: "",                         // ex.: "AIzaSy..."
-    fusoHorario: "America/Sao_Paulo"
+    fusoHorario: "America/Sao_Paulo",
+
+    /* Link "lançar na agenda" no fim da mensagem que a cliente manda.
+       NÃO depende do "ativo" acima: funciona mesmo com a leitura desligada,
+       e não precisa de chave nenhuma.
+
+       Como funciona: a cliente envia o pedido pelo WhatsApp, vocês combinam
+       na conversa e, só depois de você confirmar, você toca no link. O Google
+       Agenda abre com tudo preenchido e o horário entra quando você toca em
+       "Salvar". Nada é marcado antes disso.
+
+       Deixe false se preferir lançar os horários na mão. */
+    linkParaConfirmar: true
   },
 
   /* ------------------------------------------------------------------
@@ -2270,6 +2282,64 @@ const AgendaGoogle = (function () {
     return "https://wa.me/" + numero + "?text=" + encodeURIComponent(mensagem);
   }
 
+  /**
+   * Link que abre o Google Agenda com o horário já preenchido.
+   *
+   * Tocar no link NÃO marca nada: o Google só mostra o evento montado, e ele
+   * passa a existir quando a Marcia toca em "Salvar". É esse toque que faz o
+   * papel da confirmação — o horário só entra na agenda depois que ela fecha
+   * o combinado com a cliente na conversa.
+   *
+   * Retorna "" quando o link está desligado em js/config.js.
+   */
+  function linkAgendaGoogle() {
+    const cfg = CONFIG.googleAgenda || {};
+    if (cfg.linkParaConfirmar === false) return "";
+    if (!estado.servicos.length || !estado.data || !estado.hora) return "";
+
+    // Hora de parede, sem converter para UTC: mandamos o fuso do salão no
+    // parâmetro "ctz" e o Google entende o horário exatamente como escrito.
+    const comeco  = new Date(
+      estado.data.getFullYear(), estado.data.getMonth(), estado.data.getDate(),
+      0, paraMinutos(estado.hora)
+    );
+    const termino = new Date(comeco.getTime() + duracaoTotal() * 60000);
+
+    const carimbo = (d) =>
+      d.getFullYear() + doisDigitos(d.getMonth() + 1) + doisDigitos(d.getDate()) +
+      "T" + doisDigitos(d.getHours()) + doisDigitos(d.getMinutes()) + "00";
+
+    const nome = $("#clienteNome").value.trim();
+    const obs  = $("#clienteObs").value.trim();
+
+    const detalhes = [
+      "Agendamento pedido pelo site.",
+      "",
+      "Cliente: " + nome,
+      "WhatsApp: " + $("#clienteTelefone").value.trim(),
+      estado.servicos.length > 1 ? "Serviços:" : "Serviço:"
+    ];
+    estado.servicos.forEach((s) => {
+      detalhes.push("• " + s.nome + ": " + s.preco + " (" + formatarDuracao(s.duracao) + ")");
+    });
+    detalhes.push(
+      "Valor total: " + precoTotal(),
+      "Duração total: " + formatarDuracao(duracaoTotal())
+    );
+    if (obs) detalhes.push("Observação: " + obs);
+
+    const parametros = new URLSearchParams({
+      action: "TEMPLATE",
+      text: nome + " — " + estado.servicos.map((s) => s.nome).join(" + "),
+      dates: carimbo(comeco) + "/" + carimbo(termino),
+      details: detalhes.join("\n"),
+      location: CONFIG.contato.endereco || "",
+      ctz: cfg.fusoHorario || "America/Sao_Paulo"
+    });
+
+    return "https://calendar.google.com/calendar/render?" + parametros.toString();
+  }
+
   function montarContato() {
     $("#contatoEndereco").textContent = CONFIG.contato.endereco;
 
@@ -2675,6 +2745,17 @@ const AgendaGoogle = (function () {
     );
     if (obs) linhas.push("*Observação:* " + obs);
     linhas.push("", "Aguardo a confirmação. Obrigada!");
+
+    // Convite para a Marcia lançar na agenda DEPOIS de confirmar na conversa.
+    // Vai por último para ficar fácil de achar e tocar no celular.
+    const linkAgenda = linkAgendaGoogle();
+    if (linkAgenda) {
+      linhas.push(
+        "",
+        "📅 Marcia, quando confirmar comigo, é só tocar aqui para lançar na sua agenda:",
+        linkAgenda
+      );
+    }
 
     window.open(linkWhatsApp(linhas.join("\n")), "_blank", "noopener");
 
